@@ -2,6 +2,7 @@
 const scorePoll = require("./scoring");
 const cron = require("node-cron");
 const Poll = require("../models/Poll");
+const processChallengeCycle = require("./challengeCycle");
 
 const TIMEZONE = "Asia/Dhaka";
 
@@ -48,12 +49,28 @@ async function closePolls(bot) {
         try {
             // Close the Telegram poll if it is not already closed
             if (!poll.closed) {
-                await bot.api.stopPoll(poll.chatId, poll.messageId);
+                try {
+                    await bot.api.stopPoll(poll.chatId, poll.messageId);
+                    console.log(`${poll.type} poll closed.`);
+                } catch (error) {
+                    const description = (
+                        error.description || error.message || ""
+                    ).toLowerCase();
+
+                    if (
+                        !description.includes("poll has already been closed") &&
+                        !description.includes("poll has already been stopped")
+                    ) {
+                        throw error;
+                    }
+
+                    console.log(
+                        `${poll.type} poll was already closed in Telegram.`
+                    );
+                }
 
                 poll.closed = true;
                 await poll.save();
-
-                console.log(`${poll.type} poll closed.`);
             }
 
             // Score the poll if it has not been scored
@@ -134,9 +151,12 @@ function startScheduler(bot, groupId) {
         closePolls(bot).catch(console.error);
     }, { timezone: TIMEZONE });
 
-    // Process overdue polls after a restart
-    closePolls(bot).catch(console.error);
-
+        // Check the 30-day challenge cycle every minute
+    cron.schedule("* * * * *", () => {
+        processChallengeCycle(bot, groupId).catch(error => {
+            console.error("Challenge cycle failed:", error.message);
+        });
+    }, { timezone: TIMEZONE });
     console.log("Poll scheduler started.");
 }
 

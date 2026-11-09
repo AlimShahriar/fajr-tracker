@@ -6,6 +6,7 @@ const connectDB = require("./config/database");
 const startScheduler = require("./services/scheduler");
 const Poll = require("./models/Poll");
 const User = require("./models/User");
+const registerAdminHandlers = require("./handlers/admin");
 
 if (!process.env.BOT_TOKEN) {
     throw new Error("BOT_TOKEN is missing from .env");
