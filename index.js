@@ -34,11 +34,9 @@ bot.on("poll_answer", async (ctx) => {
         const poll = await Poll.findOne({
             pollId: pollAnswer.poll_id
         });
-
-        if (!poll || poll.closed) {
+        if (!poll || poll.closed || new Date() >= poll.closesAt) {
             return;
         }
-
         const telegramUser = pollAnswer.user;
         const userId = String(telegramUser.id);
 
